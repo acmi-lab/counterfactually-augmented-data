@@ -34,4 +34,4 @@ If you use our data, please cite the paper that introduced the resource with the
 ### Revision platform
 
 We will release the code for the revision platform soon. We are currently cleaning up the codebase to make it easier to use. In the meanwhile, the interface is depicted below:
-![Revision platform](https://github.com/dkaushik96/bizarro-data-private/blob/master/platform_screenshot.png)
+![Revision platform](https://github.com/dkaushik96/counterfactually-augmented-data/blob/master/platform_screenshot.png)
