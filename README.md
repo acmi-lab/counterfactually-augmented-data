@@ -26,8 +26,8 @@ If you use our data, please cite the paper that introduced the resource with the
 @article{kaushik2019learning,
   title={Learning the Difference that Makes a Difference with Counterfactually-Augmented Data},
   author={Kaushik, Divyansh and Hovy, Eduard and Lipton, Zachary C},
-  journal={arXiv preprint arXiv:1909.12434},
-  year={2019}
+  journal={International Conference on Learning Representations (ICLR)},
+  year={2020}
 }
 ```
 
