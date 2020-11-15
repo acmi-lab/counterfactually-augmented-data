@@ -1,3 +1,6 @@
+# DS-GA 3001 Term Project
+Using the data from the original repository for the term project
+
 # Learning the Difference that Makes a Difference with Counterfactually-Augmented Data
 
 ### Overview
