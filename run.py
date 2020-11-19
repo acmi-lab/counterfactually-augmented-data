@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import pandas as pd
 import torch
 
@@ -39,7 +38,7 @@ print(train)
 #exit(0)
 
 # Iterators
-device="cpu"
+device="cuda"
 train_iter = BucketIterator(train, batch_size=32, sort_key=lambda x: len(x.Text),
                             device=device, sort=True, sort_within_batch=True)
 valid_iter = BucketIterator(valid, batch_size=32, sort_key=lambda x: len(x.Text),
@@ -75,7 +74,7 @@ class LSTM(nn.Module):
 
         text_emb = self.embedding(text)
 
-        packed_input = pack_padded_sequence(text_emb, text_len, batch_first=True, enforce_sorted=False)
+        packed_input = pack_padded_sequence(text_emb, text_len.cpu(), batch_first=True, enforce_sorted=False)
         packed_output, _ = self.lstm(packed_input)
         output, _ = pad_packed_sequence(packed_output, batch_first=True)
 
@@ -229,5 +228,35 @@ def train(model,
 model = LSTM().to(device)
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-train(model=model, optimizer=optimizer, num_epochs=1)
+train(model=model, optimizer=optimizer, num_epochs=10)
 train_loss_list, valid_loss_list, global_steps_list = load_metrics(destination_folder + '/metrics.pt')
+
+# Evaluation Function
+
+def evaluate(model, test_loader, version='title', threshold=0.5):
+    y_pred = []
+    y_true = []
+
+    model.eval()
+    with torch.no_grad():
+        for (labels, (text, text_len)), _ in test_loader:           
+        #for (labels, (title, title_len), (text, text_len), (titletext, titletext_len)), _ in test_loader:           
+            labels = labels.to(device)
+            #titletext = titletext.to(device)
+            text = text.to(device)
+            #titletext_len = titletext_len.to(device)
+            output = model(text, text_len)
+
+            output = (output > threshold).int()
+            y_pred.extend(output.tolist())
+            y_true.extend(labels.tolist())
+    
+    print('Classification Report:')
+    print(classification_report(y_true, y_pred, labels=[1,0], digits=4))
+    
+best_model = LSTM().to(device)
+optimizer = optim.Adam(best_model.parameters(), lr=0.001)
+
+load_checkpoint(destination_folder + '/model.pt', best_model, optimizer)
+evaluate(best_model, test_iter)
+

@@ -1,6 +1,11 @@
 # DS-GA 3001 Term Project
 Using the data from the original repository for the term project
 
+## Update 11/19
+Added base LSTM Model
+Added extra preprocessing step to convert the labels to 1/0
+Model seems to learn a non-trivial classification but it's not great on 10 epochs. Right now only using the data in combined csv i.e. 3400 rows 
+
 # Learning the Difference that Makes a Difference with Counterfactually-Augmented Data
 
 ### Overview
