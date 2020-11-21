@@ -4,9 +4,11 @@ import torch
 # Preliminaries
 
 from torchtext.data import Field, RawField, TabularDataset, BucketIterator
+from keras.preprocessing.text import Tokenizer
+from keras.preprocessing.sequence import pad_sequences
 
 # Models
-
+import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
@@ -38,7 +40,7 @@ print(train)
 #exit(0)
 
 # Iterators
-device="cuda"
+device="cpu"
 train_iter = BucketIterator(train, batch_size=32, sort_key=lambda x: len(x.Text),
                             device=device, sort=True, sort_within_batch=True)
 valid_iter = BucketIterator(valid, batch_size=32, sort_key=lambda x: len(x.Text),
@@ -47,12 +49,35 @@ test_iter = BucketIterator(test, batch_size=32, sort_key=lambda x: len(x.Text),
                             device=device, sort=True, sort_within_batch=True)
 
 text_field.build_vocab(train, min_freq=3)
-print(train_iter)
+print(len(text_field.vocab), train_iter)
 #for (label, (text, text_len)), _ in train_iter:
 #    print(label, text)
 
 # Vocabulary
 
+### Possible simpler data loading
+
+train_df = pd.read_csv(source_folder+"train"+"_preprocessed.csv")
+train_texts = list(train_df["Text"])
+train_labels = list(train_df["label"])
+tokenizer = Tokenizer(num_words=len(text_field.vocab), oov_token=True)
+tokenizer.fit_on_texts(train_texts)
+train_sequences = tokenizer.texts_to_sequences(train_texts)
+max_padding = max([len(i) for i in train_sequences])
+train_data = pad_sequences(train_sequences, maxlen=max_padding, padding='post')
+batch_size = 32
+
+def get_train_dataloader(train_data, batch_size):
+    for i in range(0, len(train_data), batch_size):
+        yield torch.tensor(train_data[i:i+batch_size], device=device, dtype=torch.long),torch.tensor(train_labels[i:i+batch_size],device=device)
+
+train_dataloader = get_train_dataloader(train_data, batch_size)
+i=0
+for text in train_dataloader:
+    print(text, i)
+    if i == 4:
+        break
+    i+=1
 
 class LSTM(nn.Module):
 
