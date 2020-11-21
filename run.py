@@ -40,7 +40,8 @@ print(train)
 #exit(0)
 
 # Iterators
-device="cpu"
+device="cuda" 
+print("Device ", device)
 train_iter = BucketIterator(train, batch_size=32, sort_key=lambda x: len(x.Text),
                             device=device, sort=True, sort_within_batch=True)
 valid_iter = BucketIterator(valid, batch_size=32, sort_key=lambda x: len(x.Text),
@@ -49,7 +50,7 @@ test_iter = BucketIterator(test, batch_size=32, sort_key=lambda x: len(x.Text),
                             device=device, sort=True, sort_within_batch=True)
 
 text_field.build_vocab(train, min_freq=3)
-print(len(text_field.vocab), train_iter)
+print(len(text_field.vocab), len(train_iter), train_iter)
 #for (label, (text, text_len)), _ in train_iter:
 #    print(label, text)
 
@@ -57,27 +58,62 @@ print(len(text_field.vocab), train_iter)
 
 ### Possible simpler data loading
 
+tokenizer = Tokenizer(num_words=len(text_field.vocab), oov_token=True)
+
 train_df = pd.read_csv(source_folder+"train"+"_preprocessed.csv")
+#train_df = train_df.sample(frac=1)
 train_texts = list(train_df["Text"])
 train_labels = list(train_df["label"])
-tokenizer = Tokenizer(num_words=len(text_field.vocab), oov_token=True)
 tokenizer.fit_on_texts(train_texts)
 train_sequences = tokenizer.texts_to_sequences(train_texts)
 max_padding = max([len(i) for i in train_sequences])
 train_data = pad_sequences(train_sequences, maxlen=max_padding, padding='post')
 batch_size = 32
 
-def get_train_dataloader(train_data, batch_size):
-    for i in range(0, len(train_data), batch_size):
-        yield torch.tensor(train_data[i:i+batch_size], device=device, dtype=torch.long),torch.tensor(train_labels[i:i+batch_size],device=device)
+val_df = pd.read_csv(source_folder+"dev"+"_preprocessed.csv")
+val_df = val_df.sample(frac=1)
+val_texts = list(val_df["Text"])
+val_labels = list(val_df["label"])
+val_sequences = tokenizer.texts_to_sequences(val_texts)
+val_padding = max([len(i) for i in val_sequences])
+val_data = pad_sequences(val_sequences, maxlen=max_padding, padding='post')
 
-train_dataloader = get_train_dataloader(train_data, batch_size)
-i=0
-for text in train_dataloader:
-    print(text, i)
-    if i == 4:
-        break
-    i+=1
+test_df = pd.read_csv(source_folder+"test"+"_preprocessed.csv")
+test_df = test_df.sample(frac=1)
+test_texts = list(test_df["Text"])
+test_labels = list(test_df["label"])
+test_sequences = tokenizer.texts_to_sequences(test_texts)
+max_padding = max([len(i) for i in test_sequences])
+test_data = pad_sequences(test_sequences, maxlen=max_padding, padding='post')
+
+print(train_data.shape)
+print(val_data.shape)
+print(test_data.shape)
+
+def get_dataloader(data, labels, batch_size):
+    # Returns batch_size chunks of (encoded texts, length of each text, label of each text)
+    obj = []
+    for i in range(0, len(data), batch_size):
+        obj.append((torch.tensor(data[i:i+batch_size], device=device, dtype=torch.long), torch.tensor([len(j) for j in data[i:i+batch_size]], device=device), torch.tensor(labels[i:i+batch_size],device=device, dtype=torch.float)))
+    return obj
+
+train_dataloader = get_dataloader(train_data, train_labels, batch_size)
+val_dataloader = get_dataloader(val_data, val_labels, batch_size)
+test_dataloader = get_dataloader(test_data, test_labels, batch_size)
+
+train_batches = 0
+for text, text_len, labels in train_dataloader:
+    train_batches+=1
+
+val_batches = 0
+for text, text_len, labels in val_dataloader:
+    val_batches+=1
+
+test_batches = 0
+for text, text_len, labels in test_dataloader:
+    test_batches+=1
+
+print(len(train_iter), train_batches, len(test_iter), test_batches)
 
 class LSTM(nn.Module):
 
@@ -98,8 +134,9 @@ class LSTM(nn.Module):
     def forward(self, text, text_len):
 
         text_emb = self.embedding(text)
-
+        #output = self.lstm(text_emb)
         packed_input = pack_padded_sequence(text_emb, text_len.cpu(), batch_first=True, enforce_sorted=False)
+        #packed_input = pack_padded_sequence(text_emb, text_len.cpu(), batch_first=True, enforce_sorted=False)
         packed_output, _ = self.lstm(packed_input)
         output, _ = pad_packed_sequence(packed_output, batch_first=True)
 
@@ -172,10 +209,14 @@ def load_metrics(load_path):
 def train(model,
           optimizer,
           criterion = nn.BCELoss(),
-          train_loader = train_iter,
-          valid_loader = valid_iter,
+          #train_loader = train_iter,
+          train_loader = train_dataloader,
+          train_batches = train_batches,
+          #valid_loader = valid_iter,
+          valid_loader = val_dataloader,
+          valid_batches = val_batches,
           num_epochs = 5,
-          eval_every = len(train_iter) // 2,
+          eval_every = train_batches // 2, #len(train_iter) // 2,
           file_path = destination_folder,
           best_valid_loss = float("Inf")):
     
@@ -190,8 +231,12 @@ def train(model,
     # training loop
     model.train()
     for epoch in range(num_epochs):
-        for (labels, (text, text_len)), _ in train_loader:           
+        #train_batches = 0
+        for text, text_len, labels in train_loader:           
+        #for (labels, (text, text_len)), _ in train_loader:           
         #for (labels, (title, title_len), (text, text_len), (titletext, titletext_len)), _ in train_loader:           
+            #train_batches += 1
+            #print("Entered train loop")
             labels = labels.to(device)
             #titletext = titletext.to(device)
             text = text.to(device)
@@ -212,7 +257,9 @@ def train(model,
                 model.eval()
                 with torch.no_grad():                    
                   # validation loop
-                  for (labels, (text, text_len)), _ in valid_loader:           
+                  #val_batches = 0
+                  for text, text_len, labels in valid_loader:           
+                  #for (labels, (text, text_len)), _ in valid_loader:           
                   #for (labels, (title, title_len), (text, text_len), (titletext, titletext_len)), _ in valid_loader:
                       labels = labels.to(device)
                       #titletext = titletext.to(device)
@@ -222,10 +269,10 @@ def train(model,
 
                       loss = criterion(output, labels)
                       valid_running_loss += loss.item()
-
+                      #val_batches += 1
                 # evaluation
                 average_train_loss = running_loss / eval_every
-                average_valid_loss = valid_running_loss / len(valid_loader)
+                average_valid_loss = valid_running_loss / valid_batches#(val_data.shape[0]//batch_size)#(val_batches*batch_size)#len(valid_loader)
                 train_loss_list.append(average_train_loss)
                 valid_loss_list.append(average_valid_loss)
                 global_steps_list.append(global_step)
@@ -237,7 +284,7 @@ def train(model,
 
                 # print progress
                 print('Epoch [{}/{}], Step [{}/{}], Train Loss: {:.4f}, Valid Loss: {:.4f}'
-                      .format(epoch+1, num_epochs, global_step, num_epochs*len(train_loader),
+                      .format(epoch+1, num_epochs, global_step, num_epochs*train_batches,#train_data.shape[0],#train_batches*batch_size,#len(train_loader),
                               average_train_loss, average_valid_loss))
                 
                 # checkpoint
@@ -253,7 +300,7 @@ def train(model,
 model = LSTM().to(device)
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-train(model=model, optimizer=optimizer, num_epochs=10)
+train(model=model, optimizer=optimizer, num_epochs=20)
 train_loss_list, valid_loss_list, global_steps_list = load_metrics(destination_folder + '/metrics.pt')
 
 # Evaluation Function
@@ -264,7 +311,8 @@ def evaluate(model, test_loader, version='title', threshold=0.5):
 
     model.eval()
     with torch.no_grad():
-        for (labels, (text, text_len)), _ in test_loader:           
+        for text, text_len, labels in test_loader:           
+        #for (labels, (text, text_len)), _ in test_loader:           
         #for (labels, (title, title_len), (text, text_len), (titletext, titletext_len)), _ in test_loader:           
             labels = labels.to(device)
             #titletext = titletext.to(device)
@@ -283,5 +331,6 @@ best_model = LSTM().to(device)
 optimizer = optim.Adam(best_model.parameters(), lr=0.001)
 
 load_checkpoint(destination_folder + '/model.pt', best_model, optimizer)
-evaluate(best_model, test_iter)
+evaluate(best_model, test_dataloader)
+#evaluate(best_model, test_iter)
 
