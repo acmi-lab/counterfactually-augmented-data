@@ -6,11 +6,15 @@
 
 import numpy as np
 import pandas as pd
+import random
+np.random.seed(123)
+random.seed(123)
 #import matplotlib.pyplot as plt
 
 from sklearn.model_selection import train_test_split
 
 import torch
+torch.manual_seed(123)
 import torch.optim as optim
 from torchtext.data import Field
 from keras.preprocessing.text import Tokenizer
@@ -73,7 +77,7 @@ test_IDs = test_df['batch_id'].values
 
 indices = list(range(len(train_df)))
 factual_indices, counterfactual_indices = train_test_split(indices, test_size=0.5, stratify=train_IDs)
-print(factual_indices)
+#print(factual_indices)
 temp = factual_indices + counterfactual_indices
 temp2 = counterfactual_indices + factual_indices
 factual_indices = temp
@@ -316,7 +320,7 @@ def train(model,
 
 
 model = LSTM().to(device)
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+optimizer = optim.Adam(model.parameters(), lr=0.0005)
 
 train(model=model, optimizer=optimizer, num_epochs=20)
 train_loss_list, valid_loss_list, global_steps_list = load_metrics(destination_folder + '/cf-metrics.pt')
