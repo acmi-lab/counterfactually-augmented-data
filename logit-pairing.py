@@ -199,7 +199,10 @@ criterion = torch.nn.BCELoss()
 
 def clp_loss(criterion, output, labels, cf_output, lambda_coef):
     counterfactual_loss = (output - cf_output).abs().sum()
-    loss = criterion(output, labels) - lambda_coef * counterfactual_loss
+    sigmoid_out = torch.sigmoid(output)
+    #print("Loss function ", sigmoid_out)
+    loss = criterion(sigmoid_out, labels) - lambda_coef * counterfactual_loss
+    #loss = criterion(output, labels) - lambda_coef * counterfactual_loss
     return loss
 
 
@@ -288,7 +291,7 @@ def train(model,
                       #text_len = torch.ones((batch_size, ), dtype=torch.long, device=device) * val_padding
                       #titletext_len = titletext_len.to(device)
                       output = model(text, text_len)
-
+                      output = torch.sigmoid(output)
                       loss = criterion(output, labels)
                       valid_running_loss += loss.item()
                       #val_batches += 1
@@ -343,8 +346,10 @@ def evaluate(model, test_loader, version='title', threshold=0.5):
             #text_len = torch.ones((batch_size, )) * test_padding
             #titletext_len = titletext_len.to(device)
             output = model(text, text_len)
-
-            output = (output > threshold).int()
+            
+            sigmoid_out = torch.sigmoid(output)
+            output = (sigmoid_out > threshold).int()
+            #output = (output > threshold).int()
             y_pred.extend(output.tolist())
             y_true.extend(labels.tolist())
     

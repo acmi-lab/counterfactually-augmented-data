@@ -35,9 +35,12 @@ class LSTM(nn.Module):
 
         text_fea = self.fc(text_fea)
         text_fea = torch.squeeze(text_fea, 1)
-        text_out = torch.sigmoid(text_fea)
-
-        return text_out
+        #print(text_fea)
+        #text_out = torch.sigmoid(text_fea)
+        #print(text_out)
+        #ch = input()
+        return text_fea
+        #return text_out
 
 
 def save_checkpoint(save_path, model, optimizer, valid_loss):
