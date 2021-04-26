@@ -23,11 +23,22 @@ gold_label    | The truth value of hypothesis given premise
 If you use our data, please cite the paper that introduced the resource with the following BibTeX:
 
 ```
-@article{kaushik2019learning,
-  title={Learning the Difference that Makes a Difference with Counterfactually-Augmented Data},
+@article{kaushik2020learning,
+  title={Learning the Difference that Makes a Difference with Counterfactually Augmented Data},
   author={Kaushik, Divyansh and Hovy, Eduard and Lipton, Zachary C},
   journal={International Conference on Learning Representations (ICLR)},
   year={2020}
+}
+```
+
+Our [follow-up paper](https://openreview.net/forum?id=HHiiQKWsOcV) explaining the efficacy of CAD was accepted to ICLR 2021. The OOD datasets used in this paper can be found [here](https://cmu.box.com/s/1gmpkfiyxtgtv6gw4vrevb4zyel9ur8n).
+
+```
+@article{kaushik2021learning,
+  title={Explaining the Efficacy of Counterfactually Augmented Data},
+  author={Kaushik, Divyansh and Setlur, Amrith and Hovy, Eduard and Lipton, Zachary C},
+  journal={International Conference on Learning Representations (ICLR)},
+  year={2021}
 }
 ```
 
